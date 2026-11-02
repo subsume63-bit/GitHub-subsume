@@ -3,119 +3,229 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>내 첫 웹페이지</title>
+  <title>분원 업무 허브 · MARIA Hub</title>
+  <meta name="description" content="마리아의료재단 분원 업무 허브. 인쇄물·게시물, 자료실, 물품 구매·신청, DID 영상, 기업 MOU를 한곳에서.">
   <style>
     :root {
-      --bg: #f3f7f4;
-      --text: #1d2b24;
-      --muted: #5b6b63;
-      --accent: #2f7d5b;
-      --card: #ffffff;
-      --line: #d5e2da;
+      --nav: #1f332f;
+      --nav-text: #e9f1ee;
+      --bg: #ffffff;
+      --text: #1d2b27;
+      --muted: #5a6b66;
+      --line: #e6ebe9;
+      --card-line: #f0d9de;
+      --accent: #17694f;
+      --accent-soft: #e4f2ec;
     }
     @media (prefers-color-scheme: dark) {
       :root {
-        --bg: #14201a;
-        --text: #e8f1ec;
-        --muted: #9db0a5;
-        --accent: #5fc795;
-        --card: #1c2c24;
-        --line: #2d4338;
+        --nav: #14221f;
+        --nav-text: #e9f1ee;
+        --bg: #101a18;
+        --text: #e6efec;
+        --muted: #9db0aa;
+        --line: #26352f;
+        --card-line: #4a3238;
+        --accent: #6fd0a8;
+        --accent-soft: #1d3a31;
       }
     }
+    :root[data-theme="light"] {
+      --nav: #1f332f; --bg: #ffffff; --text: #1d2b27; --muted: #5a6b66;
+      --line: #e6ebe9; --card-line: #f0d9de; --accent: #17694f; --accent-soft: #e4f2ec;
+    }
+
     * { box-sizing: border-box; }
+    html { scroll-padding-top: 80px; }
     body {
       margin: 0;
-      min-height: 100vh;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+    a { color: inherit; text-decoration: none; }
+    a:focus-visible, button:focus-visible {
+      outline: 3px solid var(--accent);
+      outline-offset: 3px;
+      border-radius: 6px;
+    }
+
+    /* ---------- 상단 메뉴 ---------- */
+    .topbar { background: var(--nav); color: var(--nav-text); }
+    .topbar-inner {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 24px;
+      min-height: 64px;
+      display: flex;
+      align-items: center;
+      gap: 28px;
+      flex-wrap: wrap;
+    }
+    .brand { display: flex; align-items: baseline; gap: 10px; padding-right: 24px; border-right: 1px solid rgba(255,255,255,.18); }
+    .brand .logo { font-family: Georgia, "Times New Roman", serif; font-size: 1.55rem; letter-spacing: .02em; }
+    .brand .hub { font-weight: 700; font-size: 1.05rem; }
+    .menu { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; }
+    .menu a { padding: 8px 12px; border-radius: 8px; font-size: .95rem; opacity: .9; }
+    .menu a:hover { background: rgba(255,255,255,.1); opacity: 1; }
+    .me { display: flex; align-items: center; gap: 12px; font-size: .95rem; }
+    .avatar {
+      width: 34px; height: 34px; border-radius: 50%;
+      background: #f1e6e6; color: #1f332f;
+      display: grid; place-items: center; font-weight: 700;
+    }
+
+    /* ---------- 본문 ---------- */
+    main { max-width: 1200px; margin: 0 auto; padding: 56px 24px 24px; }
+    .org { margin: 0; color: var(--muted); font-size: .95rem; }
+    h1 { margin: 6px 0 12px; font-size: clamp(1.9rem, 4vw, 2.6rem); line-height: 1.25; letter-spacing: -.02em; }
+    .lead { margin: 0 0 40px; color: var(--muted); font-size: 1.05rem; }
+
+    .cards {
       display: grid;
-      place-items: center;
-      padding: 24px;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 18px;
+    }
+    .card {
+      display: block;
+      padding: 26px 28px;
+      border: 1px solid var(--card-line);
+      border-radius: 20px;
       background: var(--bg);
-      color: var(--text);
-      font-family: "Pretendard", "Noto Sans KR", system-ui, sans-serif;
-      line-height: 1.7;
+      transition: border-color .15s, transform .15s;
     }
-    main {
-      width: 100%;
-      max-width: 520px;
-      background: var(--card);
-      border: 1px solid var(--line);
-      border-radius: 16px;
-      padding: 32px;
+    .card:hover { border-color: var(--accent); transform: translateY(-2px); }
+    .card h2 { margin: 0 0 10px; font-size: 1.15rem; display: flex; align-items: baseline; gap: 8px; }
+    .badge { font-size: .78rem; font-weight: 600; color: var(--accent); }
+    .card .desc { margin: 0 0 12px; color: var(--muted); font-size: .95rem; }
+    .card .ask { margin: 0; color: var(--muted); font-size: .92rem; }
+
+    /* ---------- 최근 바뀐 것 ---------- */
+    .recent { margin-top: 64px; padding-top: 36px; border-top: 1px solid var(--line); }
+    .recent-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+    .recent-head h2 { margin: 0; font-size: 1rem; }
+    .recent-head a, .recent li a { color: var(--accent); font-weight: 600; font-size: .95rem; }
+    .recent ul { list-style: none; margin: 0; padding: 0; }
+    .recent li {
+      display: grid;
+      grid-template-columns: 90px 1fr auto;
+      gap: 16px;
+      align-items: center;
+      padding: 16px 0;
+      border-top: 1px solid var(--line);
     }
-    h1 { margin: 0 0 8px; font-size: 1.8rem; }
-    p { margin: 0 0 20px; color: var(--muted); }
-    .counter {
-      font-size: 3rem;
-      font-weight: 700;
-      color: var(--accent);
-      margin: 8px 0 16px;
+    .recent li:first-child { border-top: 0; }
+    .recent .date { color: var(--muted); }
+    .recent a:hover { text-decoration: underline; }
+
+    /* ---------- 하단 ---------- */
+    footer { max-width: 1200px; margin: 48px auto 0; padding: 32px 24px 64px; }
+    .contact { border-top: 1px solid var(--line); padding-top: 28px; margin: 0; color: var(--muted); }
+    .contact strong { color: var(--text); }
+
+    /* ---------- 반응형 ---------- */
+    @media (max-width: 900px) {
+      .cards { grid-template-columns: repeat(2, 1fr); }
     }
-    button {
-      font: inherit;
-      font-weight: 600;
-      padding: 10px 20px;
-      border: 0;
-      border-radius: 10px;
-      background: var(--accent);
-      color: #fff;
-      cursor: pointer;
+    @media (max-width: 640px) {
+      .topbar-inner { gap: 10px; padding: 10px 16px; }
+      .brand { border-right: 0; padding-right: 0; }
+      .menu { order: 3; flex-basis: 100%; gap: 2px; }
+      .me { margin-left: auto; }
+      main { padding: 36px 16px 8px; }
+      .cards { grid-template-columns: 1fr; }
+      .recent li { grid-template-columns: 1fr; gap: 2px; padding: 14px 0; }
+      footer { padding: 24px 16px 48px; }
     }
-    button:focus-visible { outline: 3px solid var(--text); outline-offset: 2px; }
-    button.ghost {
-      background: transparent;
-      color: var(--muted);
-      border: 1px solid var(--line);
-      margin-left: 8px;
-    }
-    .memo { margin-top: 28px; }
-    input {
-      width: 100%;
-      font: inherit;
-      padding: 10px 12px;
-      border: 1px solid var(--line);
-      border-radius: 10px;
-      background: var(--bg);
-      color: var(--text);
-    }
-    #greeting { margin-top: 12px; min-height: 1.7em; color: var(--text); }
   </style>
 </head>
 <body>
-  <main>
-    <h1>안녕하세요, GitHub!</h1>
-    <p>이 페이지는 subsume 업로드 연습용이에요. 버튼이 잘 작동하면 코드가 정상입니다.</p>
 
-    <div class="counter" id="count">0</div>
-    <button id="plus">클릭 +1</button>
-    <button id="reset" class="ghost">초기화</button>
-
-    <div class="memo">
-      <label for="name">이름을 입력해 보세요</label>
-      <input id="name" type="text" placeholder="예: 민수">
-      <div id="greeting"></div>
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="./" aria-label="MARIA Hub 홈">
+        <span class="logo">MARIA</span>
+        <span class="hub">Hub</span>
+      </a>
+      <nav class="menu" aria-label="주요 메뉴">
+        <a href="#print">인쇄물·게시물</a>
+        <a href="#library">자료실</a>
+        <a href="#supplies">물품 구매·신청</a>
+        <a href="#did">DID 영상</a>
+        <a href="#mou">기업 MOU</a>
+      </nav>
+      <div class="me">
+        <a href="#my-requests">내 접수 내역</a>
+        <span class="avatar" aria-hidden="true">S</span>
+      </div>
     </div>
+  </header>
+
+  <main>
+    <p class="org">마리아의료재단</p>
+    <h1>분원 업무 허브</h1>
+    <p class="lead">필요한 것을 고르세요. 여기서 해결되지 않으면 아래 문의처로 연락해 주세요.</p>
+
+    <section class="cards" aria-label="업무 바로가기">
+      <a class="card" id="print" href="#">
+        <h2>인쇄물·게시물 <span class="badge">새로 바뀜</span></h2>
+        <p class="desc">안내문 웹 도구, CX부 제작 의뢰</p>
+        <p class="ask">“안내문 양식이 있나요?”</p>
+      </a>
+      <a class="card" id="library" href="#">
+        <h2>자료실</h2>
+        <p class="desc">서체·템플릿·공문 작성·로고</p>
+        <p class="ask">“공문은 어떻게 쓰죠?”</p>
+      </a>
+      <a class="card" id="supplies" href="#">
+        <h2>물품 구매·신청</h2>
+        <p class="desc">품목별 주문처·단가·조건 · CX부에 물품 신청</p>
+        <p class="ask">“환자용 가운은 어디서 사죠?”</p>
+      </a>
+      <a class="card" id="did" href="#">
+        <h2>DID 영상 현황</h2>
+        <p class="desc">분원별 편성 영상·러닝타임</p>
+        <p class="ask">“우리 분원에 뭐가 나가고 있죠?”</p>
+      </a>
+      <a class="card" id="mou" href="#">
+        <h2>기업 MOU</h2>
+        <p class="desc">협약 기업·혜택·환자 안내 방법</p>
+        <p class="ask">“환자가 제휴 혜택을 물어봐요”</p>
+      </a>
+    </section>
+
+    <section class="recent" aria-labelledby="recent-title">
+      <div class="recent-head">
+        <h2 id="recent-title">최근 바뀐 것</h2>
+        <a href="#">전체 보기</a>
+      </div>
+      <ul>
+        <li>
+          <span class="date">10월 30일</span>
+          <span>인쇄물을 만들 때 로고를 넣을지 뺄지 고를 수 있습니다.</span>
+          <a href="#">인쇄물·게시물 목록 →</a>
+        </li>
+        <li>
+          <span class="date">10월 26일</span>
+          <span>시험관 요법 안내문에 저자극요법을 추가했습니다.</span>
+          <a href="#">시험관 요법 안내 →</a>
+        </li>
+        <li>
+          <span class="date">10월 23일</span>
+          <span>대구마리아 시험관·인공수정 비교 안내문을 인쇄할 수 있습니다.</span>
+          <a href="#">시험관·인공수정 비교 안내 →</a>
+        </li>
+      </ul>
+    </section>
   </main>
 
-  <script>
-    let count = 0;
-    const countEl = document.getElementById("count");
+  <footer>
+    <p class="contact">
+      해결되지 않았나요? — <strong>CX부</strong> 02-2250-3891 · <a href="mailto:dyshin@mariababy.com">dyshin@mariababy.com</a>
+    </p>
+  </footer>
 
-    document.getElementById("plus").addEventListener("click", () => {
-      count += 1;
-      countEl.textContent = count;
-    });
-
-    document.getElementById("reset").addEventListener("click", () => {
-      count = 0;
-      countEl.textContent = count;
-    });
-
-    document.getElementById("name").addEventListener("input", (e) => {
-      const name = e.target.value.trim();
-      document.getElementById("greeting").textContent =
-        name ? name + "님, 반가워요!" : "";
-    });
-  </script>
 </body>
 </html>

@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>공지사항 · MARIA Hub</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
   <style>
     :root {
       --nav: #1f332f; --nav-text: #e9f1ee;
@@ -42,12 +43,32 @@
     .list li { display: grid; grid-template-columns: 90px 1fr; gap: 16px; padding: 20px 4px; border-bottom: 1px solid var(--line); }
     .list li.empty { display: block; color: var(--muted); }
     .date { color: var(--muted); }
+    .item { min-width: 0; }
     .item-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; }
     .pin { padding: 0 8px; border-radius: 999px; background: var(--accent); color: var(--bg); font-size: .75rem; font-weight: 700; }
     .title { font: inherit; font-weight: 700; font-size: 1.05rem; background: none; border: 0; padding: 0; color: var(--text); cursor: pointer; text-align: left; }
     .title:hover { text-decoration: underline; }
-    .body { white-space: pre-wrap; word-break: break-word; margin-top: 10px; padding: 14px 16px; border-radius: 10px; background: var(--accent-soft); }
-    .body[hidden] { display: none; }
+    .detail[hidden] { display: none; }
+
+    /* 본문 (일반 글 / HTML 글) */
+    .body { margin-top: 10px; padding: 14px 16px; border-radius: 10px; background: var(--accent-soft); overflow: hidden; word-break: break-word; }
+    .body.plain { white-space: pre-wrap; }
+    .body.rich > :first-child { margin-top: 0; }
+    .body.rich > :last-child { margin-bottom: 0; }
+    .body.rich img { max-width: 100%; height: auto; }
+    .body.rich a { color: var(--accent); text-decoration: underline; }
+    .body.rich table { border-collapse: collapse; max-width: 100%; display: block; overflow-x: auto; }
+    .body.rich th, .body.rich td { border: 1px solid var(--line); padding: 6px 10px; }
+    .body.rich blockquote { margin: 12px 0; padding-left: 14px; border-left: 3px solid var(--accent); color: var(--muted); }
+
+    /* 첨부파일 */
+    .files { margin-top: 12px; }
+    .files-label { margin: 0 0 6px; font-size: .85rem; font-weight: 600; color: var(--muted); }
+    .files ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+    .files a { color: var(--accent); font-weight: 600; text-decoration: underline; word-break: break-all; }
+    .thumbs { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
+    .thumbs img { max-width: 220px; max-height: 160px; border-radius: 8px; border: 1px solid var(--line); display: block; }
+
     .item-actions { display: flex; gap: 8px; margin-top: 10px; }
     .mini { font: inherit; font-size: .82rem; padding: 3px 12px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; }
     .mini.danger { color: var(--danger); border-color: var(--danger); }
@@ -57,7 +78,7 @@
 
     .admin { margin-top: 40px; padding: 16px 18px; border: 1px dashed var(--line); border-radius: 14px; }
     .admin:empty { display: none; }
-    .admin-label { margin: 0 0 10px; font-size: .9rem; font-weight: 600; color: var(--muted); }
+    .admin-label { margin: 0 0 8px; font-size: .9rem; font-weight: 600; color: var(--muted); }
     .adminbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
     .adminbar .who { margin-right: auto; font-size: .92rem; color: var(--muted); }
     .login-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
@@ -67,11 +88,17 @@
     }
     .editor-form { display: grid; gap: 10px; margin: 0 0 24px; padding: 16px; border: 1px solid var(--accent); border-radius: 14px; }
     .editor-form input[type="text"], .editor-form textarea { width: 100%; }
-    .editor-form textarea { resize: vertical; }
+    .editor-form textarea { resize: vertical; font-family: ui-monospace, "Cascadia Mono", Consolas, "Malgun Gothic", monospace; font-size: .92rem; }
+    .editor-form input[type="file"] { font: inherit; max-width: 100%; }
+    .hint { margin: 0; font-size: .85rem; color: var(--muted); }
     .check { display: flex; align-items: center; gap: 6px; font-size: .92rem; }
+    .file-edit { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+    .file-edit li { display: flex; align-items: center; gap: 10px; font-size: .9rem; word-break: break-all; }
     .btn { font: inherit; font-weight: 600; font-size: .92rem; padding: 8px 16px; border-radius: 10px; border: 1px solid var(--accent); background: var(--accent); color: var(--bg); cursor: pointer; }
     .btn.ghost { background: transparent; color: var(--accent); }
+    .btn:disabled { opacity: .6; cursor: default; }
     .err { margin: 8px 0 0; font-size: .9rem; color: var(--danger); }
+    .status { margin: 0; font-size: .9rem; color: var(--muted); }
 
     @media (max-width: 640px) {
       .topbar-inner { padding: 0 16px; }
@@ -106,11 +133,16 @@
        Supabase → Project Settings → API 에서 복사합니다.
        KEY는 anon(public) 또는 publishable 키만 사용하세요.
        service_role / secret 키는 절대 넣으면 안 됩니다. */
-const SUPABASE_URL = "https://diwondrsssxhpxybcibv.supabase.co";
-const SUPABASE_KEY = "sb_publishable_iTYaFkeLOPlF0sJNUxOdHw_mXtpdSH9";      
+    const SUPABASE_URL = "여기에_프로젝트_URL";
+    const SUPABASE_KEY = "여기에_publishable_키";
     /* ================================================== */
 
-    const PAGE_SIZE = 10; // 한 번에 보여줄 공지 개수 ("더 보기"를 누르면 이만큼 늘어납니다)
+    const PAGE_SIZE = 10;        // 한 번에 보여줄 공지 개수
+    const BUCKET = "notice-files"; // 첨부파일 저장소 이름 (Supabase Storage)
+    const MAX_FILES = 5;         // 글 하나에 붙일 수 있는 파일 수
+    const MAX_MB = 10;           // 파일 하나의 최대 크기
+    const BLOCKED = /\.(exe|bat|cmd|com|msi|ps1|vbs|js|jar|html?|svg|scr)$/i; // 올릴 수 없는 형식
+    const IMAGE = /\.(png|jpe?g|gif|webp)$/i;
 
     const ready = SUPABASE_URL.startsWith("https://") && SUPABASE_KEY.length > 20;
     let sb = null;
@@ -132,9 +164,79 @@ const SUPABASE_KEY = "sb_publishable_iTYaFkeLOPlF0sJNUxOdHw_mXtpdSH9";
     function fmt(d) {
       return new Date(d).toLocaleDateString("ko-KR", { year: "numeric", month: "long", day: "numeric" });
     }
+    function sizeText(n) {
+      if (n >= 1048576) return (n / 1048576).toFixed(1) + "MB";
+      return Math.max(1, Math.round(n / 1024)) + "KB";
+    }
     function emptyRow(text) {
       moreEl.replaceChildren();
       listEl.replaceChildren(h("li", "empty", text));
+    }
+
+    /* ---------- HTML 본문: 안전하게 걸러서 표시 ---------- */
+    if (window.DOMPurify) {
+      DOMPurify.addHook("afterSanitizeAttributes", (node) => {
+        if (node.tagName === "A") {
+          node.setAttribute("target", "_blank");
+          node.setAttribute("rel", "noopener noreferrer");
+        }
+      });
+    }
+    const PURIFY = {
+      FORBID_TAGS: ["style", "form", "iframe", "object", "embed", "input", "button", "textarea", "select"],
+      FORBID_ATTR: ["style"]
+    };
+    function looksHtml(s) { return /<\/?[a-z][\s\S]*?>/i.test(s); }
+
+    function fillBody(el, text) {
+      el.className = "body";
+      if (looksHtml(text) && window.DOMPurify) {
+        el.classList.add("rich");
+        el.innerHTML = DOMPurify.sanitize(text, PURIFY);
+      } else {
+        el.classList.add("plain");
+        el.textContent = text;
+      }
+    }
+
+    /* ---------- 첨부파일 ---------- */
+    function publicUrl(path, downloadName) {
+      const opt = downloadName ? { download: downloadName } : undefined;
+      return sb.storage.from(BUCKET).getPublicUrl(path, opt).data.publicUrl;
+    }
+    function renderFiles(files) {
+      if (!Array.isArray(files) || !files.length) return null;
+      const box = h("div", "files");
+      box.append(h("p", "files-label", "첨부파일"));
+
+      const imgs = files.filter((f) => IMAGE.test(f.name));
+      if (imgs.length) {
+        const th = h("div", "thumbs");
+        imgs.forEach((f) => {
+          const a = h("a");
+          a.href = publicUrl(f.path);
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          const im = h("img");
+          im.src = publicUrl(f.path);
+          im.alt = f.name;
+          im.loading = "lazy";
+          a.append(im);
+          th.append(a);
+        });
+        box.append(th);
+      }
+      const ul = h("ul");
+      files.forEach((f) => {
+        const li = h("li");
+        const a = h("a", null, f.name + " (" + sizeText(f.size || 0) + ")");
+        a.href = publicUrl(f.path, f.name);
+        a.setAttribute("download", f.name);
+        li.append(a);
+        ul.append(li);
+      });
+      box.append(ul);
+      return box;
     }
 
     /* ---------- 공지 목록 (내용까지 펼쳐서 표시) ---------- */
@@ -154,11 +256,16 @@ const SUPABASE_KEY = "sb_publishable_iTYaFkeLOPlF0sJNUxOdHw_mXtpdSH9";
         head.append(t);
         box.append(head);
 
-        const body = h("div", "body", n.body || "(내용 없음)");
-        box.append(body);
+        const detail = h("div", "detail");
+        const body = h("div");
+        fillBody(body, n.body || "(내용 없음)");
+        detail.append(body);
+        const files = renderFiles(n.attachments);
+        if (files) detail.append(files);
+        box.append(detail);
         t.onclick = () => {
-          body.hidden = !body.hidden;
-          t.setAttribute("aria-expanded", String(!body.hidden));
+          detail.hidden = !detail.hidden;
+          t.setAttribute("aria-expanded", String(!detail.hidden));
         };
 
         if (session) {
@@ -169,9 +276,12 @@ const SUPABASE_KEY = "sb_publishable_iTYaFkeLOPlF0sJNUxOdHw_mXtpdSH9";
           const del = h("button", "mini danger", "삭제");
           del.type = "button";
           del.onclick = async () => {
-            if (!confirm("이 공지를 삭제할까요? 되돌릴 수 없어요.")) return;
+            if (!confirm("이 공지를 삭제할까요? 첨부파일도 함께 삭제되며 되돌릴 수 없어요.")) return;
             const { error } = await sb.from("notices").delete().eq("id", n.id);
             if (error) return alert("삭제하지 못했어요: " + error.message);
+            if (Array.isArray(n.attachments) && n.attachments.length) {
+              await sb.storage.from(BUCKET).remove(n.attachments.map((f) => f.path));
+            }
             loadNotices();
           };
           act.append(ed, del);
@@ -205,19 +315,84 @@ const SUPABASE_KEY = "sb_publishable_iTYaFkeLOPlF0sJNUxOdHw_mXtpdSH9";
     function closeEditor() { editorEl.replaceChildren(); }
 
     function openEditor(post) {
-      const p = post || { title: "", body: "", pinned: false };
+      const p = post || { title: "", body: "", pinned: false, attachments: [] };
+      let keep = Array.isArray(p.attachments) ? p.attachments.slice() : []; // 이미 올라가 있는 파일
+      const removed = [];  // 수정 중 뺀 파일 (저장하면 저장소에서도 삭제)
+      const added = [];    // 새로 고른 파일
+
       const f = h("form", "editor-form");
       f.append(h("p", "admin-label", post ? "공지 수정" : "새 공지 쓰기"));
 
       const t = h("input");
       t.type = "text"; t.placeholder = "제목"; t.value = p.title; t.required = true; t.maxLength = 120;
+
       const b = h("textarea");
-      b.rows = 7; b.placeholder = "내용 (줄바꿈이 그대로 보입니다)"; b.value = p.body;
+      b.rows = 10; b.placeholder = "내용을 입력하세요. HTML 태그도 사용할 수 있어요."; b.value = p.body;
+
+      const hint = h("p", "hint",
+        "HTML 태그를 쓸 수 있어요. 예: <b>굵게</b>, <a href=\"https://…\">링크</a>, <img src=\"…\">, <ul><li>목록</li></ul>. " +
+        "HTML을 쓰면 줄바꿈은 <br> 또는 <p>로 넣어 주세요. 안전을 위해 스크립트와 스타일은 자동으로 제거돼요.");
+
+      const prevBtn = h("button", "btn ghost", "미리보기");
+      prevBtn.type = "button";
+      const prev = h("div");
+      prev.hidden = true;
+      prevBtn.onclick = () => {
+        if (prev.hidden) {
+          fillBody(prev, b.value || "(내용 없음)");
+          prev.hidden = false;
+          prevBtn.textContent = "미리보기 닫기";
+        } else {
+          prev.hidden = true;
+          prevBtn.textContent = "미리보기";
+        }
+      };
+      b.oninput = () => { if (!prev.hidden) fillBody(prev, b.value || "(내용 없음)"); };
 
       const lab = h("label", "check");
       const c = h("input");
       c.type = "checkbox"; c.checked = p.pinned;
       lab.append(c, document.createTextNode("중요 공지로 맨 위에 고정"));
+
+      const err = h("p", "err");
+      const fileLabel = h("p", "admin-label", "첨부파일 (최대 " + MAX_FILES + "개, 파일당 " + MAX_MB + "MB)");
+      const input = h("input");
+      input.type = "file"; input.multiple = true;
+      const fileList = h("ul", "file-edit");
+
+      function drawFiles() {
+        fileList.replaceChildren();
+        keep.forEach((x, i) => {
+          const li = h("li");
+          li.append(h("span", null, x.name + " (" + sizeText(x.size || 0) + ")"));
+          const rm = h("button", "mini danger", "삭제");
+          rm.type = "button";
+          rm.onclick = () => { removed.push(keep.splice(i, 1)[0]); drawFiles(); };
+          li.append(rm);
+          fileList.append(li);
+        });
+        added.forEach((x, i) => {
+          const li = h("li");
+          li.append(h("span", null, x.name + " (" + sizeText(x.size) + ") · 새 파일"));
+          const rm = h("button", "mini", "취소");
+          rm.type = "button";
+          rm.onclick = () => { added.splice(i, 1); drawFiles(); };
+          li.append(rm);
+          fileList.append(li);
+        });
+      }
+      input.onchange = () => {
+        err.textContent = "";
+        for (const file of input.files) {
+          if (BLOCKED.test(file.name)) { err.textContent = "보안상 올릴 수 없는 형식이에요: " + file.name; continue; }
+          if (file.size > MAX_MB * 1048576) { err.textContent = file.name + " 는 " + MAX_MB + "MB를 넘어요."; continue; }
+          if (keep.length + added.length >= MAX_FILES) { err.textContent = "파일은 최대 " + MAX_FILES + "개까지 붙일 수 있어요."; break; }
+          added.push(file);
+        }
+        input.value = "";
+        drawFiles();
+      };
+      drawFiles();
 
       const act = h("div", "adminbar");
       const save = h("button", "btn", "저장");
@@ -225,23 +400,53 @@ const SUPABASE_KEY = "sb_publishable_iTYaFkeLOPlF0sJNUxOdHw_mXtpdSH9";
       const cancel = h("button", "btn ghost", "취소");
       cancel.type = "button";
       cancel.onclick = closeEditor;
-      act.append(save, cancel);
+      const status = h("span", "status");
+      act.append(save, cancel, status);
 
-      const err = h("p", "err");
-      f.append(t, b, lab, act, err);
+      f.append(t, b, hint, prevBtn, prev, lab, fileLabel, input, fileList, act, err);
 
       f.onsubmit = async (ev) => {
         ev.preventDefault();
+        err.textContent = "";
         save.disabled = true;
-        const payload = { title: t.value.trim(), body: b.value, pinned: c.checked };
+        const uploaded = [];
+        const rollback = async () => {
+          if (uploaded.length) await sb.storage.from(BUCKET).remove(uploaded.map((x) => x.path));
+        };
+
+        for (let i = 0; i < added.length; i++) {
+          const file = added[i];
+          status.textContent = "파일 올리는 중… (" + (i + 1) + "/" + added.length + ")";
+          const ext = ((file.name.split(".").pop() || "bin").toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 8)) || "bin";
+          const path = Date.now() + "-" + Math.random().toString(36).slice(2, 8) + "." + ext; // 저장 이름은 영문/숫자로
+          const up = await sb.storage.from(BUCKET).upload(path, file, { contentType: file.type || "application/octet-stream" });
+          if (up.error) {
+            await rollback();
+            save.disabled = false; status.textContent = "";
+            err.textContent = "파일을 올리지 못했어요: " + up.error.message;
+            return;
+          }
+          uploaded.push({ name: file.name, path: path, size: file.size, type: file.type });
+        }
+
+        status.textContent = "저장 중…";
+        const payload = { title: t.value.trim(), body: b.value, pinned: c.checked, attachments: keep.concat(uploaded) };
         const res = post
           ? await sb.from("notices").update(payload).eq("id", post.id)
           : await sb.from("notices").insert(payload);
         save.disabled = false;
-        if (res.error) { err.textContent = "저장하지 못했어요: " + res.error.message; return; }
+        status.textContent = "";
+        if (res.error) {
+          await rollback();
+          const need = /attachments/.test(res.error.message) ? " (Supabase에서 첨부파일용 SQL을 먼저 실행해야 해요)" : "";
+          err.textContent = "저장하지 못했어요: " + res.error.message + need;
+          return;
+        }
+        if (removed.length) await sb.storage.from(BUCKET).remove(removed.map((x) => x.path));
         closeEditor();
         loadNotices();
       };
+
       editorEl.replaceChildren(f);
       t.focus();
       f.scrollIntoView({ behavior: "smooth", block: "center" });
@@ -282,7 +487,11 @@ const SUPABASE_KEY = "sb_publishable_iTYaFkeLOPlF0sJNUxOdHw_mXtpdSH9";
         err.textContent = "";
         const { error } = await sb.auth.signInWithPassword({ email: em.value.trim(), password: pw.value });
         go.disabled = false;
-        if (error) err.textContent = "로그인하지 못했어요. 이메일과 비밀번호를 확인하세요.";
+        if (error) {
+          err.textContent = /fetch/i.test(error.message)
+            ? "서버에 연결하지 못했어요. SUPABASE_URL과 네트워크를 확인하세요."
+            : "로그인하지 못했어요. 이메일과 비밀번호를 확인하세요.";
+        }
       };
       adminEl.append(f, err);
     }

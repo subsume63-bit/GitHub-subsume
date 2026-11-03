@@ -129,6 +129,8 @@
     .notice { margin-top: 56px; }
     .notice-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
     .notice-head h2 { margin: 0; font-size: 1rem; }
+    .notice-head a { color: var(--accent); font-weight: 600; font-size: .95rem; }
+    .notice-head a:hover { text-decoration: underline; }
     .notice ul { list-style: none; margin: 0; padding: 0; }
     .notice li {
       display: grid;
@@ -242,6 +244,7 @@
     <section class="notice" aria-labelledby="notice-title">
       <div class="notice-head">
         <h2 id="notice-title">공지사항</h2>
+        <a href="notice.html">전체 보기 →</a>
       </div>
       <ul id="notice-list"></ul>
     </section>

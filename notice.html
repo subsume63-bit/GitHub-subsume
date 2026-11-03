@@ -95,6 +95,8 @@
       footer { padding: 20px 16px 40px; }
     }
 
+    .open-body { white-space: pre-wrap; word-break: break-word; margin-top: 8px; padding: 12px 14px; border-radius: 10px; background: var(--accent-soft); }
+    .mini { margin-left: 10px; font-size: .82rem; color: var(--muted); text-decoration: underline; }
     /* ---- 메인 화면 안에 넣어 보여줄 때 (?embed=1) ---- */
     .embed .topbar, .embed .org, .embed h1 { display: none; }
     .embed main { max-width: none; margin: 0; padding: 0 0 8px; min-height: 0; }
@@ -178,10 +180,13 @@
 
     async function renderList() {
       msg("불러오는 중…");
-      const { data, error } = await sb.from("notices")
-        .select("id,title,pinned,created_at")
+      const EMBED = document.documentElement.classList.contains("embed");
+      let q = sb.from("notices")
+        .select(EMBED ? "*" : "id,title,pinned,created_at")
         .order("pinned", { ascending: false })
         .order("created_at", { ascending: false });
+      if (EMBED) q = q.limit(5); // 메인에는 최근 5개를 내용까지 펼쳐서 보여줍니다
+      const { data, error } = await q;
       if (error) return msg("공지를 불러오지 못했어요. (" + error.message + ")");
       if (!data.length) return msg("등록된 공지가 없습니다.");
       const ul = h("ul", "list");
@@ -193,6 +198,12 @@
         const a = h("a", null, p.title);
         a.href = "#post-" + p.id;
         t.append(a);
+        if (session && EMBED) {
+          const ed = h("a", "mini", "수정");
+          ed.href = "#edit-" + p.id;
+          t.append(ed);
+        }
+        if (EMBED && p.body) t.append(h("div", "open-body", p.body));
         li.append(t);
         ul.append(li);
       });

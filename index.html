@@ -102,6 +102,14 @@
     .card .desc { margin: 0 0 12px; color: var(--muted); font-size: .95rem; }
     .card .ask { margin: 0; color: var(--muted); font-size: .92rem; }
 
+    /* ---------- 공지사항 (notice.html 을 안에 넣어 보여줌) ---------- */
+    .notice { margin-top: 56px; scroll-margin-top: 80px; }
+    .notice-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
+    .notice-head h2 { margin: 0; font-size: 1rem; }
+    .notice-head a { color: var(--accent); font-weight: 600; font-size: .95rem; }
+    .notice-head a:hover { text-decoration: underline; }
+    #notice-frame { display: block; width: 100%; min-height: 320px; border: 0; background: transparent; }
+
     /* ---------- 최근 바뀐 것 ---------- */
     .recent { margin-top: 64px; padding-top: 36px; border-top: 1px solid var(--line); }
     .recent-head { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 14px; }
@@ -155,7 +163,7 @@
         <a href="#supplies">물품 구매·신청</a>
         <a href="#did">DID 영상</a>
         <a href="#mou">기업 MOU</a>
-        <a href="notice.html">공지사항</a>
+        <a href="#notices">공지사항</a>
       </nav>
       <div class="me">
         <a href="#my-requests">내 접수 내역</a>
@@ -195,11 +203,14 @@
         <p class="desc">협약 기업·혜택·환자 안내 방법</p>
         <p class="ask">“환자가 제휴 혜택을 물어봐요”</p>
       </a>
-      <a class="card" id="notice" href="notice.html">
-        <h2>공지사항</h2>
-        <p class="desc">허브 운영 안내·변경 사항</p>
-        <p class="ask">“새로 달라진 게 있나요?”</p>
-      </a>
+    </section>
+
+    <section class="notice" id="notices" aria-labelledby="notice-title">
+      <div class="notice-head">
+        <h2 id="notice-title">공지사항</h2>
+        <a href="notice.html">전체 화면으로 보기 →</a>
+      </div>
+      <iframe id="notice-frame" src="notice.html?embed=1" title="공지사항 게시판"></iframe>
     </section>
 
     <section class="recent" aria-labelledby="recent-title">
@@ -233,5 +244,23 @@
     </p>
   </footer>
 
+
+  <script>
+    /* 공지 게시판(iframe)의 길이에 맞춰 높이를 자동으로 늘리고 줄입니다 */
+    (function () {
+      const frame = document.getElementById("notice-frame");
+      function fit() {
+        try {
+          const d = frame.contentDocument;
+          if (!d || !d.body) return;
+          frame.style.height = Math.ceil(d.body.getBoundingClientRect().height) + "px";
+        } catch (e) { /* 높이를 읽지 못하면 기본 높이를 유지합니다 */ }
+      }
+      frame.addEventListener("load", function () {
+        fit();
+        try { new frame.contentWindow.ResizeObserver(fit).observe(frame.contentDocument.body); } catch (e) {}
+      });
+    })();
+  </script>
 </body>
 </html>

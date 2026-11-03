@@ -132,6 +132,35 @@
     .notice-head a { color: var(--accent); font-weight: 600; font-size: .95rem; }
     .notice-head a:hover { text-decoration: underline; }
     .notice ul { list-style: none; margin: 0; padding: 0; }
+    .notice li.empty { display: block; }
+    .item-head { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px; }
+    .title { font: inherit; background: none; border: 0; padding: 0; color: var(--text); cursor: pointer; text-align: left; }
+    .title:hover { text-decoration: underline; }
+    .body { white-space: pre-wrap; word-break: break-word; margin-top: 10px; padding: 14px 16px; border-radius: 10px; background: var(--accent-soft); }
+    .body[hidden] { display: none; }
+    .item-actions { display: flex; gap: 8px; margin-top: 8px; }
+    .mini { font: inherit; font-size: .82rem; padding: 3px 12px; border-radius: 8px; border: 1px solid var(--line); background: transparent; color: var(--muted); cursor: pointer; }
+    .mini.danger { color: #b3261e; border-color: #b3261e; }
+    .admin { margin-top: 24px; padding: 16px 18px; border: 1px dashed var(--line); border-radius: 14px; }
+    .admin:empty { display: none; }
+    .admin-label { margin: 0 0 10px; font-size: .9rem; font-weight: 600; color: var(--muted); }
+    .adminbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; }
+    .adminbar .who { margin-right: auto; font-size: .92rem; color: var(--muted); }
+    .login-row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .login-row input, .editor-form input[type="text"], .editor-form textarea {
+      font: inherit; padding: 9px 12px; border: 1px solid var(--line); border-radius: 10px;
+      background: var(--bg); color: var(--text);
+    }
+    .editor-form { display: grid; gap: 10px; margin: 0 0 16px; padding: 16px; border: 1px solid var(--accent); border-radius: 14px; }
+    .editor-form input[type="text"], .editor-form textarea { width: 100%; }
+    .editor-form textarea { resize: vertical; }
+    .check { display: flex; align-items: center; gap: 6px; font-size: .92rem; }
+    .btn { font: inherit; font-weight: 600; font-size: .92rem; padding: 8px 16px; border-radius: 10px; border: 1px solid var(--accent); background: var(--accent); color: var(--bg); cursor: pointer; }
+    .btn.ghost { background: transparent; color: var(--accent); }
+    .err { margin: 8px 0 0; font-size: .9rem; color: #b3261e; }
+    @media (max-width: 640px) {
+      .notice li { grid-template-columns: 1fr; gap: 2px; }
+    }
     .notice li {
       display: grid;
       grid-template-columns: 90px 1fr;
@@ -183,6 +212,7 @@
       footer { padding: 24px 16px 48px; }
     }
   </style>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
 </head>
 <body>
 
@@ -241,12 +271,14 @@
       </a>
     </section>
 
-    <section class="notice" aria-labelledby="notice-title">
+    <section class="notice" id="notices" aria-labelledby="notice-title">
       <div class="notice-head">
         <h2 id="notice-title">공지사항</h2>
         <a href="notice.html">전체 보기 →</a>
       </div>
-      <ul id="notice-list"></ul>
+      <div id="editor"></div>
+      <ul id="notice-list"><li class="empty">불러오는 중…</li></ul>
+      <div class="admin" id="admin-area"></div>
     </section>
 
     <section class="recent" aria-labelledby="recent-title">
@@ -281,73 +313,218 @@
   </footer>
 
   <script>
-    /* ===== 공지사항은 여기만 고치면 됩니다 =====
-       - 새 공지는 맨 위에 한 줄 추가하세요 (최신순으로 보여줍니다).
-       - pinned: true 로 하면 상단 안내 띠에도 나옵니다 (가장 위의 1개만).
-       - link는 없으면 "" 로 두세요.
-       - 지울 공지는 그 줄을 통째로 지우면 됩니다. */
-    const notices = [
-      { date: "11월 3일", title: "분원 업무 허브 시범 운영을 시작합니다.", link: "", pinned: true },
-      { date: "10월 30일", title: "인쇄물 제작 의뢰는 월·수·금 오전에 접수됩니다.", link: "", pinned: false },
-      { date: "10월 20일", title: "물품 신청 양식이 새 버전으로 바뀌었습니다.", link: "", pinned: false }
-    ];
+    /* ====== 여기 두 줄만 내 Supabase 값으로 바꾸세요 ======
+       notice.html에 넣었던 값과 똑같이 넣으면 됩니다.
+       KEY는 anon(public) 또는 publishable 키만 사용하세요.
+       service_role / secret 키는 절대 넣으면 안 됩니다. */
+     const SUPABASE_URL = "https://diwondrsssxhpxybcibv.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_iTYaFkeLOPlF0sJNUxOdHw_mXtpdSH9";
 
-    /* ===== 아래는 화면에 그려주는 부분 (수정 불필요) ===== */
-    const list = document.getElementById("notice-list");
+    /* ================================================== */
+
+    const MAIN_COUNT = 8; // 메인에 보여줄 최근 공지 개수
+
+    const ready = SUPABASE_URL.startsWith("https://") && SUPABASE_KEY.length > 20;
+    let sb = null;
+    let session = null;
+    if (ready) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    const listEl = document.getElementById("notice-list");
     const banner = document.getElementById("banner");
+    const adminEl = document.getElementById("admin-area");
+    const editorEl = document.getElementById("editor");
 
-    function makeTitle(n) {
-      const wrap = document.createElement("span");
-      if (n.pinned) {
-        const pin = document.createElement("span");
-        pin.className = "pin";
-        pin.textContent = "중요";
-        wrap.appendChild(pin);
-      }
-      if (n.link) {
-        const a = document.createElement("a");
-        a.href = n.link;
-        a.textContent = n.title;
-        wrap.appendChild(a);
-      } else {
-        wrap.appendChild(document.createTextNode(n.title));
-      }
-      return wrap;
+    function h(tag, cls, text) {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text !== undefined) e.textContent = text;
+      return e;
+    }
+    function fmt(d) {
+      return new Date(d).toLocaleDateString("ko-KR", { month: "long", day: "numeric" });
+    }
+    function emptyRow(text) {
+      listEl.replaceChildren(h("li", "empty", text));
     }
 
-    if (notices.length === 0) {
-      const empty = document.createElement("li");
-      empty.className = "empty";
-      empty.textContent = "등록된 공지가 없습니다.";
-      list.appendChild(empty);
-    } else {
-      notices.forEach((n) => {
-        const li = document.createElement("li");
-        const date = document.createElement("span");
-        date.className = "date";
-        date.textContent = n.date;
-        li.appendChild(date);
-        li.appendChild(makeTitle(n));
-        list.appendChild(li);
+    /* ---------- 상단 안내 띠 ---------- */
+    function renderBanner(data) {
+      banner.replaceChildren();
+      banner.classList.remove("show");
+      const p = data.find((n) => n.pinned);
+      if (!p) return;
+      banner.append(h("span", "tag", "공지"));
+      const a = h("a", null, p.title);
+      a.href = "#notices";
+      banner.append(a);
+      banner.classList.add("show");
+    }
+
+    /* ---------- 공지 목록 ---------- */
+    function renderList(data) {
+      listEl.replaceChildren();
+      if (!data.length) return emptyRow("등록된 공지가 없습니다.");
+      data.forEach((n) => {
+        const li = h("li");
+        li.append(h("span", "date", fmt(n.created_at)));
+
+        const box = h("div", "item");
+        const head = h("div", "item-head");
+        if (n.pinned) head.append(h("span", "pin", "중요"));
+        const t = h("button", "title", n.title);
+        t.type = "button";
+        t.setAttribute("aria-expanded", "false");
+        head.append(t);
+        box.append(head);
+
+        const body = h("div", "body", n.body || "(내용 없음)");
+        body.hidden = true;
+        box.append(body);
+        t.onclick = () => {
+          body.hidden = !body.hidden;
+          t.setAttribute("aria-expanded", String(!body.hidden));
+        };
+
+        if (session) {
+          const act = h("div", "item-actions");
+          const ed = h("button", "mini", "수정");
+          ed.type = "button";
+          ed.onclick = () => openEditor(n);
+          const del = h("button", "mini danger", "삭제");
+          del.type = "button";
+          del.onclick = async () => {
+            if (!confirm("이 공지를 삭제할까요? 되돌릴 수 없어요.")) return;
+            const { error } = await sb.from("notices").delete().eq("id", n.id);
+            if (error) return alert("삭제하지 못했어요: " + error.message);
+            loadNotices();
+          };
+          act.append(ed, del);
+          box.append(act);
+        }
+        li.append(box);
+        listEl.append(li);
       });
     }
 
-    const pinned = notices.find((n) => n.pinned);
-    if (pinned) {
-      const tag = document.createElement("span");
-      tag.className = "tag";
-      tag.textContent = "공지";
-      banner.appendChild(tag);
-      if (pinned.link) {
-        const a = document.createElement("a");
-        a.href = pinned.link;
-        a.textContent = pinned.title;
-        banner.appendChild(a);
-      } else {
-        banner.appendChild(document.createTextNode(pinned.title));
+    async function loadNotices() {
+      if (!ready) {
+        renderBanner([]);
+        return emptyRow("Supabase 연결 정보가 아직 입력되지 않았습니다.");
       }
-      banner.classList.add("show");
+      const { data, error } = await sb.from("notices")
+        .select("*")
+        .order("pinned", { ascending: false })
+        .order("created_at", { ascending: false })
+        .limit(MAIN_COUNT);
+      if (error) {
+        renderBanner([]);
+        return emptyRow("공지를 불러오지 못했습니다. (" + error.message + ")");
+      }
+      renderBanner(data);
+      renderList(data);
     }
+
+    /* ---------- 글쓰기 / 수정 ---------- */
+    function closeEditor() { editorEl.replaceChildren(); }
+
+    function openEditor(post) {
+      const p = post || { title: "", body: "", pinned: false };
+      const f = h("form", "editor-form");
+      f.append(h("p", "admin-label", post ? "공지 수정" : "새 공지 쓰기"));
+
+      const t = h("input");
+      t.type = "text"; t.placeholder = "제목"; t.value = p.title; t.required = true; t.maxLength = 120;
+      const b = h("textarea");
+      b.rows = 6; b.placeholder = "내용 (줄바꿈이 그대로 보입니다)"; b.value = p.body;
+
+      const lab = h("label", "check");
+      const c = h("input");
+      c.type = "checkbox"; c.checked = p.pinned;
+      lab.append(c, document.createTextNode(" 중요 공지로 맨 위에 고정 (상단 띠에도 표시)"));
+
+      const act = h("div", "adminbar");
+      const save = h("button", "btn", "저장");
+      save.type = "submit";
+      const cancel = h("button", "btn ghost", "취소");
+      cancel.type = "button";
+      cancel.onclick = closeEditor;
+      act.append(save, cancel);
+
+      const err = h("p", "err");
+      f.append(t, b, lab, act, err);
+
+      f.onsubmit = async (ev) => {
+        ev.preventDefault();
+        save.disabled = true;
+        const payload = { title: t.value.trim(), body: b.value, pinned: c.checked };
+        const res = post
+          ? await sb.from("notices").update(payload).eq("id", post.id)
+          : await sb.from("notices").insert(payload);
+        save.disabled = false;
+        if (res.error) { err.textContent = "저장하지 못했어요: " + res.error.message; return; }
+        closeEditor();
+        loadNotices();
+      };
+      editorEl.replaceChildren(f);
+      t.focus();
+    }
+
+    /* ---------- 관리자 로그인 창 ---------- */
+    function renderAdmin() {
+      adminEl.replaceChildren();
+      if (!ready) return;
+
+      if (session) {
+        const w = h("div", "adminbar");
+        w.append(h("span", "who", "관리자: " + session.user.email));
+        const nw = h("button", "btn", "새 글 쓰기");
+        nw.type = "button";
+        nw.onclick = () => openEditor(null);
+        const out = h("button", "btn ghost", "로그아웃");
+        out.type = "button";
+        out.onclick = async () => { await sb.auth.signOut(); };
+        w.append(nw, out);
+        adminEl.append(w);
+        return;
+      }
+
+      adminEl.append(h("p", "admin-label", "관리자 로그인"));
+      const f = h("form", "login-row");
+      const em = h("input");
+      em.type = "email"; em.placeholder = "이메일"; em.required = true; em.autocomplete = "username";
+      const pw = h("input");
+      pw.type = "password"; pw.placeholder = "비밀번호"; pw.required = true; pw.autocomplete = "current-password";
+      const go = h("button", "btn", "로그인");
+      go.type = "submit";
+      f.append(em, pw, go);
+      const err = h("p", "err");
+      f.onsubmit = async (ev) => {
+        ev.preventDefault();
+        go.disabled = true;
+        err.textContent = "";
+        const { error } = await sb.auth.signInWithPassword({ email: em.value.trim(), password: pw.value });
+        go.disabled = false;
+        if (error) err.textContent = "로그인하지 못했어요. 이메일과 비밀번호를 확인하세요.";
+      };
+      adminEl.append(f, err);
+    }
+
+    async function init() {
+      if (ready) {
+        const { data } = await sb.auth.getSession();
+        session = data.session;
+        sb.auth.onAuthStateChange((event, s) => {
+          if (event === "INITIAL_SESSION") return;
+          session = s;
+          closeEditor();
+          renderAdmin();
+          loadNotices();
+        });
+      }
+      renderAdmin();
+      loadNotices();
+    }
+    init();
   </script>
 </body>
 </html>

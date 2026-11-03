@@ -131,8 +131,8 @@
        URL: https://xxxx.supabase.co 형태
        KEY: anon(public) 키 또는 publishable 키만 넣으세요.
        service_role / secret 키는 절대 넣으면 안 됩니다. */
-    const SUPABASE_URL = "https://abcdefghijk.supabase.co";
-const SUPABASE_KEY = "sb_publishable_AbCdEfGh...";
+    const SUPABASE_URL = "여기에_프로젝트_URL";
+    const SUPABASE_KEY = "여기에_anon_또는_publishable_키";
     /* ================================================== */
 
     const view = document.getElementById("view");
@@ -185,7 +185,8 @@ const SUPABASE_KEY = "sb_publishable_AbCdEfGh...";
         .select(EMBED ? "*" : "id,title,pinned,created_at")
         .order("pinned", { ascending: false })
         .order("created_at", { ascending: false });
-      if (EMBED) q = q.limit(5); // 메인에는 최근 5개를 내용까지 펼쳐서 보여줍니다
+      // 메인에서는 ?limit=숫자 로 보여줄 개수를 정합니다 (없으면 5개)
+      if (EMBED) q = q.limit(Math.max(1, Number(new URLSearchParams(location.search).get("limit")) || 5));
       const { data, error } = await q;
       if (error) return msg("공지를 불러오지 못했어요. (" + error.message + ")");
       if (!data.length) return msg("등록된 공지가 없습니다.");

@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>공지사항 · MARIA Hub</title>
+  <title>전산 자료실 · MARIA Hub</title>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
   <style>
@@ -49,6 +49,9 @@
     .title { font: inherit; font-weight: 700; font-size: 1.05rem; background: none; border: 0; padding: 0; color: var(--text); cursor: pointer; text-align: left; }
     .title:hover { text-decoration: underline; }
     .detail[hidden] { display: none; }
+    .title::before { content: "▸ "; color: var(--muted); }
+    .title[aria-expanded="true"]::before { content: "▾ "; }
+    .clip { padding: 0 8px; border: 1px solid var(--line); border-radius: 999px; font-size: .78rem; color: var(--muted); }
 
     /* 본문 (일반 글 / HTML 글) */
     .body { margin-top: 10px; padding: 14px 16px; border-radius: 10px; background: var(--accent-soft); overflow: hidden; word-break: break-word; }
@@ -120,7 +123,7 @@
 
   <main>
     <p class="org">마리아의료재단</p>
-    <h1>공지사항</h1>
+    <h1>전산 자료실</h1>
 
     <div id="editor"></div>
     <ul class="list" id="notice-list"><li class="empty">불러오는 중…</li></ul>
@@ -133,8 +136,8 @@
        Supabase → Project Settings → API 에서 복사합니다.
        KEY는 anon(public) 또는 publishable 키만 사용하세요.
        service_role / secret 키는 절대 넣으면 안 됩니다. */
-    const SUPABASE_URL = "https://diwondrsssxhpxybcibv.supabase.co";   
-    const SUPABASE_KEY = "sb_publishable_iTYaFkeLOPlF0sJNUxOdHw_mXtpdSH9";  
+    const SUPABASE_URL = "https://diwondrsssxhpxybcibv.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_iTYaFkeLOPlF0sJNUxOdHw_mXtpdSH9";
     /* ================================================== */
 
     const PAGE_SIZE = 10;        // 한 번에 보여줄 공지 개수
@@ -187,6 +190,21 @@
       FORBID_ATTR: ["style"]
     };
     function looksHtml(s) { return /<\/?[a-z][\s\S]*?>/i.test(s); }
+
+    /* 일반 글을 HTML로 바꿉니다. 이미 HTML 태그가 들어 있으면 그대로 둡니다. */
+    function escapeHtml(s) {
+      return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    }
+    function toHtml(text) {
+      const src = text.replace(/\r\n/g, "\n").trim();
+      if (!src) return "";
+      if (looksHtml(src)) return src;
+      return src.split(/\n{2,}/).map(function (para) {
+        let t = escapeHtml(para).replace(/\n/g, "<br>");
+        t = t.replace(/(https?:\/\/[^\s<]+)/g, '<a href="$1">$1</a>');
+        return "<p>" + t + "</p>";
+      }).join("\n");
+    }
 
     function fillBody(el, text) {
       el.className = "body";
@@ -242,21 +260,25 @@
     /* ---------- 공지 목록 (내용까지 펼쳐서 표시) ---------- */
     function renderList(data, hasMore) {
       listEl.replaceChildren();
-      if (!data.length) return emptyRow("등록된 공지가 없습니다.");
+      if (!data.length) return emptyRow("등록된 글이 없습니다.");
       data.forEach((n) => {
         const li = h("li");
         li.append(h("span", "date", fmt(n.created_at)));
 
         const box = h("div", "item");
         const head = h("div", "item-head");
-        if (n.pinned) head.append(h("span", "pin", "중요"));
+        if (n.pinned) head.append(h("span", "pin", "고정"));
         const t = h("button", "title", n.title);
         t.type = "button";
-        t.setAttribute("aria-expanded", "true");
+        t.setAttribute("aria-expanded", "false");
         head.append(t);
+        if (Array.isArray(n.attachments) && n.attachments.length) {
+          head.append(h("span", "clip", "첨부 " + n.attachments.length));
+        }
         box.append(head);
 
         const detail = h("div", "detail");
+        detail.hidden = true;
         const body = h("div");
         fillBody(body, n.body || "(내용 없음)");
         detail.append(body);
@@ -276,7 +298,7 @@
           const del = h("button", "mini danger", "삭제");
           del.type = "button";
           del.onclick = async () => {
-            if (!confirm("이 공지를 삭제할까요? 첨부파일도 함께 삭제되며 되돌릴 수 없어요.")) return;
+            if (!confirm("이 글을 삭제할까요? 첨부파일도 함께 삭제되며 되돌릴 수 없어요.")) return;
             const { error } = await sb.from("notices").delete().eq("id", n.id);
             if (error) return alert("삭제하지 못했어요: " + error.message);
             if (Array.isArray(n.attachments) && n.attachments.length) {
@@ -307,7 +329,7 @@
         .order("pinned", { ascending: false })
         .order("created_at", { ascending: false })
         .range(0, shown); // shown + 1개를 받아서 더 있는지 확인
-      if (error) return emptyRow("공지를 불러오지 못했습니다. (" + error.message + ")");
+      if (error) return emptyRow("글을 불러오지 못했습니다. (" + error.message + ")");
       renderList(data.slice(0, shown), data.length > shown);
     }
 
@@ -321,17 +343,18 @@
       const added = [];    // 새로 고른 파일
 
       const f = h("form", "editor-form");
-      f.append(h("p", "admin-label", post ? "공지 수정" : "새 공지 쓰기"));
+      f.append(h("p", "admin-label", post ? "글 수정" : "새 글 쓰기"));
 
       const t = h("input");
       t.type = "text"; t.placeholder = "제목"; t.value = p.title; t.required = true; t.maxLength = 120;
 
       const b = h("textarea");
-      b.rows = 10; b.placeholder = "내용을 입력하세요. HTML 태그도 사용할 수 있어요."; b.value = p.body;
+      b.rows = 10; b.placeholder = "내용을 입력하세요. 저장하면 HTML로 바뀌어 저장돼요."; b.value = p.body;
 
       const hint = h("p", "hint",
-        "HTML 태그를 쓸 수 있어요. 예: <b>굵게</b>, <a href=\"https://…\">링크</a>, <img src=\"…\">, <ul><li>목록</li></ul>. " +
-        "HTML을 쓰면 줄바꿈은 <br> 또는 <p>로 넣어 주세요. 안전을 위해 스크립트와 스타일은 자동으로 제거돼요.");
+        "그냥 글로 쓰면 저장할 때 자동으로 HTML로 바꿔서 저장해요(줄바꿈, 문단, 주소 링크). " +
+        "<b>굵게</b>, <a href=\"https://…\">링크</a> 같은 HTML 태그를 직접 써도 돼요. 이 경우 줄바꿈은 <br> 또는 <p>로 넣어 주세요. " +
+        "안전을 위해 스크립트와 스타일은 자동으로 제거돼요.");
 
       const prevBtn = h("button", "btn ghost", "미리보기");
       prevBtn.type = "button";
@@ -339,7 +362,7 @@
       prev.hidden = true;
       prevBtn.onclick = () => {
         if (prev.hidden) {
-          fillBody(prev, b.value || "(내용 없음)");
+          fillBody(prev, toHtml(b.value) || "(내용 없음)");
           prev.hidden = false;
           prevBtn.textContent = "미리보기 닫기";
         } else {
@@ -347,12 +370,12 @@
           prevBtn.textContent = "미리보기";
         }
       };
-      b.oninput = () => { if (!prev.hidden) fillBody(prev, b.value || "(내용 없음)"); };
+      b.oninput = () => { if (!prev.hidden) fillBody(prev, toHtml(b.value) || "(내용 없음)"); };
 
       const lab = h("label", "check");
       const c = h("input");
       c.type = "checkbox"; c.checked = p.pinned;
-      lab.append(c, document.createTextNode("중요 공지로 맨 위에 고정"));
+      lab.append(c, document.createTextNode("목록 맨 위에 고정"));
 
       const err = h("p", "err");
       const fileLabel = h("p", "admin-label", "첨부파일 (최대 " + MAX_FILES + "개, 파일당 " + MAX_MB + "MB)");
@@ -430,7 +453,7 @@
         }
 
         status.textContent = "저장 중…";
-        const payload = { title: t.value.trim(), body: b.value, pinned: c.checked, attachments: keep.concat(uploaded) };
+        const payload = { title: t.value.trim(), body: toHtml(b.value), pinned: c.checked, attachments: keep.concat(uploaded) };
         const res = post
           ? await sb.from("notices").update(payload).eq("id", post.id)
           : await sb.from("notices").insert(payload);

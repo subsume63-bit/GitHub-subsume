@@ -1,0 +1,309 @@
+
+
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>공지사항 · MARIA Hub</title>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.js"></script>
+  <style>
+    :root {
+      --nav: #1f332f; --nav-text: #e9f1ee;
+      --bg: #ffffff; --text: #1d2b27; --muted: #5a6b66;
+      --line: #e6ebe9; --card-line: #f0d9de;
+      --accent: #17694f; --accent-soft: #e4f2ec; --danger: #b3261e;
+    }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --nav: #14221f; --bg: #101a18; --text: #e6efec; --muted: #9db0aa;
+        --line: #26352f; --card-line: #4a3238;
+        --accent: #6fd0a8; --accent-soft: #1d3a31; --danger: #f2a39e;
+      }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font-family: "Pretendard", "Noto Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+      line-height: 1.6;
+    }
+    a { color: inherit; text-decoration: none; }
+    a:focus-visible, button:focus-visible, input:focus-visible, textarea:focus-visible {
+      outline: 3px solid var(--accent); outline-offset: 2px; border-radius: 6px;
+    }
+
+    .topbar { background: var(--nav); color: var(--nav-text); }
+    .topbar-inner {
+      max-width: 1000px; margin: 0 auto; padding: 0 24px; min-height: 64px;
+      display: flex; align-items: center; gap: 24px;
+    }
+    .brand { display: flex; align-items: baseline; gap: 10px; padding-right: 24px; border-right: 1px solid rgba(255,255,255,.18); }
+    .brand .logo { font-family: Georgia, "Times New Roman", serif; font-size: 1.55rem; }
+    .brand .hub { font-weight: 700; }
+    .topbar nav a { padding: 8px 12px; border-radius: 8px; opacity: .9; }
+    .topbar nav a:hover { background: rgba(255,255,255,.1); opacity: 1; }
+
+    main { max-width: 1000px; margin: 0 auto; padding: 48px 24px 24px; min-height: 60vh; }
+    .org { margin: 0; color: var(--muted); font-size: .95rem; }
+    h1 { margin: 6px 0 24px; font-size: clamp(1.8rem, 4vw, 2.4rem); letter-spacing: -.02em; }
+
+    .adminbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 20px; padding: 12px 16px; border-radius: 12px; background: var(--accent-soft); }
+    .adminbar .who { margin-right: auto; font-size: .92rem; }
+
+    .btn {
+      display: inline-block; font: inherit; font-weight: 600; font-size: .95rem;
+      padding: 9px 18px; border: 1px solid var(--accent); border-radius: 10px;
+      background: var(--accent); color: var(--bg); cursor: pointer;
+    }
+    .btn.ghost { background: transparent; color: var(--accent); }
+    .btn.danger { background: transparent; color: var(--danger); border-color: var(--danger); }
+
+    .msg { color: var(--muted); padding: 24px 0; }
+    .err { color: var(--danger); margin: 10px 0 0; }
+
+    .list { list-style: none; margin: 0; padding: 0; border-top: 2px solid var(--text); }
+    .list li { display: grid; grid-template-columns: 90px 1fr; gap: 16px; padding: 16px 4px; border-bottom: 1px solid var(--line); }
+    .list .date { color: var(--muted); }
+    .list a:hover { text-decoration: underline; }
+    .pin {
+      display: inline-block; margin-right: 8px; padding: 0 8px; border-radius: 999px;
+      background: var(--accent); color: var(--bg); font-size: .75rem; font-weight: 700; vertical-align: 2px;
+    }
+
+    .post h2 { margin: 0 0 6px; font-size: 1.5rem; line-height: 1.35; }
+    .post .meta { margin: 0 0 20px; padding-bottom: 16px; color: var(--muted); border-bottom: 1px solid var(--line); }
+    .post .body { white-space: pre-wrap; word-break: break-word; min-height: 160px; }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 32px; }
+
+    .editor, .login { display: grid; gap: 14px; max-width: 720px; }
+    .editor input[type="text"], .editor textarea, .login input {
+      width: 100%; font: inherit; padding: 11px 14px;
+      border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--text);
+    }
+    .editor textarea { resize: vertical; }
+    .check { display: flex; align-items: center; gap: 8px; }
+
+    footer { max-width: 1000px; margin: 0 auto; padding: 24px 24px 56px; border-top: 1px solid var(--line); color: var(--muted); font-size: .9rem; }
+    footer a:hover { text-decoration: underline; }
+
+    @media (max-width: 640px) {
+      .topbar-inner { padding: 0 16px; }
+      main { padding: 32px 16px 16px; }
+      .list li { grid-template-columns: 1fr; gap: 2px; }
+      footer { padding: 20px 16px 40px; }
+    }
+  </style>
+</head>
+<body>
+
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand" href="./" aria-label="MARIA Hub 홈">
+        <span class="logo">MARIA</span><span class="hub">Hub</span>
+      </a>
+      <nav aria-label="이동"><a href="./">← 허브 홈</a></nav>
+    </div>
+  </header>
+
+  <main>
+    <p class="org">마리아의료재단</p>
+    <h1>공지사항</h1>
+    <div id="adminbar"></div>
+    <div id="view"></div>
+  </main>
+
+  <footer>
+    <a href="#login" id="loginlink">관리자 로그인</a>
+  </footer>
+
+  <script>
+    /* ====== 여기 두 줄만 내 Supabase 값으로 바꾸세요 ======
+       Supabase → Project Settings → API 에서 복사합니다.
+       URL: https://xxxx.supabase.co 형태
+       KEY: anon(public) 키 또는 publishable 키만 넣으세요.
+       service_role / secret 키는 절대 넣으면 안 됩니다. */
+    const SUPABASE_URL = "https://diwondrsssxhpxybcibv.supabase.co";
+    const SUPABASE_KEY = "sb_publishable_iTYaFkeLOPlF0sJNUxOdHw_mXtpdSH9";
+    /* ================================================== */
+
+    const view = document.getElementById("view");
+    const bar = document.getElementById("adminbar");
+    const loginlink = document.getElementById("loginlink");
+
+    const ready = SUPABASE_URL.startsWith("https://") && SUPABASE_KEY.length > 20;
+    let sb = null;
+    let session = null;
+    if (ready) sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+    function h(tag, cls, text) {
+      const e = document.createElement(tag);
+      if (cls) e.className = cls;
+      if (text !== undefined) e.textContent = text;
+      return e;
+    }
+    function show(node) { view.replaceChildren(node); }
+    function msg(text) { show(h("p", "msg", text)); }
+    function fmt(d, withYear) {
+      const o = withYear ? { year: "numeric", month: "long", day: "numeric" } : { month: "long", day: "numeric" };
+      return new Date(d).toLocaleDateString("ko-KR", o);
+    }
+
+    function renderBar() {
+      bar.replaceChildren();
+      loginlink.hidden = !!session;
+      if (!session) return;
+      const w = h("div", "adminbar");
+      w.append(h("span", "who", "관리자: " + session.user.email));
+      const nw = h("a", "btn", "새 글 쓰기");
+      nw.href = "#new";
+      const out = h("button", "btn ghost", "로그아웃");
+      out.type = "button";
+      out.onclick = async () => {
+        await sb.auth.signOut();
+        session = null;
+        renderBar();
+        location.hash = "";
+        route();
+      };
+      w.append(nw, out);
+      bar.append(w);
+    }
+
+    async function renderList() {
+      msg("불러오는 중…");
+      const { data, error } = await sb.from("notices")
+        .select("id,title,pinned,created_at")
+        .order("pinned", { ascending: false })
+        .order("created_at", { ascending: false });
+      if (error) return msg("공지를 불러오지 못했어요. (" + error.message + ")");
+      if (!data.length) return msg("등록된 공지가 없습니다.");
+      const ul = h("ul", "list");
+      data.forEach((p) => {
+        const li = h("li");
+        li.append(h("span", "date", fmt(p.created_at)));
+        const t = h("span");
+        if (p.pinned) t.append(h("span", "pin", "중요"));
+        const a = h("a", null, p.title);
+        a.href = "#post-" + p.id;
+        t.append(a);
+        li.append(t);
+        ul.append(li);
+      });
+      show(ul);
+    }
+
+    async function renderPost(id) {
+      msg("불러오는 중…");
+      const { data, error } = await sb.from("notices").select("*").eq("id", id).single();
+      if (error || !data) return msg("글을 찾을 수 없어요.");
+      const art = h("article", "post");
+      art.append(h("h2", null, data.title));
+      art.append(h("p", "meta", fmt(data.created_at, true)));
+      art.append(h("div", "body", data.body));
+      const act = h("div", "actions");
+      const back = h("a", "btn ghost", "← 목록");
+      back.href = "#";
+      act.append(back);
+      if (session) {
+        const ed = h("a", "btn", "수정");
+        ed.href = "#edit-" + id;
+        const del = h("button", "btn danger", "삭제");
+        del.type = "button";
+        del.onclick = async () => {
+          if (!confirm("이 공지를 삭제할까요? 되돌릴 수 없어요.")) return;
+          const { error: e } = await sb.from("notices").delete().eq("id", id);
+          if (e) return alert("삭제하지 못했어요: " + e.message);
+          location.hash = "";
+        };
+        act.append(ed, del);
+      }
+      art.append(act);
+      show(art);
+    }
+
+    async function renderEditor(id) {
+      if (!session) { location.hash = "#login"; return; }
+      let post = { title: "", body: "", pinned: false };
+      if (id) {
+        const { data } = await sb.from("notices").select("*").eq("id", id).single();
+        if (data) post = data;
+      }
+      const f = h("form", "editor");
+      const t = h("input");
+      t.type = "text"; t.placeholder = "제목"; t.value = post.title; t.required = true; t.maxLength = 120;
+      const b = h("textarea");
+      b.rows = 12; b.placeholder = "내용 (줄바꿈이 그대로 보입니다)"; b.value = post.body;
+      const lab = h("label", "check");
+      const c = h("input");
+      c.type = "checkbox"; c.checked = post.pinned;
+      lab.append(c, document.createTextNode("중요 공지로 맨 위에 고정"));
+      const act = h("div", "actions");
+      const save = h("button", "btn", "저장");
+      save.type = "submit";
+      const cancel = h("a", "btn ghost", "취소");
+      cancel.href = id ? "#post-" + id : "#";
+      act.append(save, cancel);
+      const err = h("p", "err");
+      f.append(t, b, lab, act, err);
+      f.onsubmit = async (ev) => {
+        ev.preventDefault();
+        save.disabled = true;
+        const payload = { title: t.value.trim(), body: b.value, pinned: c.checked };
+        let res;
+        if (id) res = await sb.from("notices").update(payload).eq("id", id).select().single();
+        else res = await sb.from("notices").insert(payload).select().single();
+        save.disabled = false;
+        if (res.error) { err.textContent = "저장하지 못했어요: " + res.error.message; return; }
+        location.hash = "#post-" + res.data.id;
+      };
+      show(f);
+    }
+
+    function renderLogin() {
+      if (session) { location.hash = ""; return; }
+      const f = h("form", "login");
+      const em = h("input");
+      em.type = "email"; em.placeholder = "관리자 이메일"; em.required = true; em.autocomplete = "username";
+      const pw = h("input");
+      pw.type = "password"; pw.placeholder = "비밀번호"; pw.required = true; pw.autocomplete = "current-password";
+      const go = h("button", "btn", "로그인");
+      go.type = "submit";
+      const err = h("p", "err");
+      f.append(em, pw, go, err);
+      f.onsubmit = async (ev) => {
+        ev.preventDefault();
+        go.disabled = true;
+        const { error } = await sb.auth.signInWithPassword({ email: em.value.trim(), password: pw.value });
+        go.disabled = false;
+        if (error) { err.textContent = "로그인하지 못했어요. 이메일과 비밀번호를 확인하세요."; return; }
+        location.hash = "";
+      };
+      show(f);
+    }
+
+    function route() {
+      if (!ready) return msg("Supabase 연결 정보가 아직 입력되지 않았어요. 파일 위쪽의 SUPABASE_URL과 SUPABASE_KEY를 채워 주세요.");
+      const hash = location.hash;
+      if (hash.startsWith("#post-")) renderPost(Number(hash.slice(6)));
+      else if (hash === "#new") renderEditor(null);
+      else if (hash.startsWith("#edit-")) renderEditor(Number(hash.slice(6)));
+      else if (hash === "#login") renderLogin();
+      else renderList();
+    }
+
+    async function init() {
+      if (ready) {
+        const { data } = await sb.auth.getSession();
+        session = data.session;
+        sb.auth.onAuthStateChange((_event, s) => { session = s; renderBar(); });
+      } else {
+        loginlink.hidden = true;
+      }
+      renderBar();
+      route();
+    }
+    window.addEventListener("hashchange", route);
+    init();
+  </script>
+</body>
+</html>
